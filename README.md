@@ -15,7 +15,7 @@
 - **Six catalogs**: Popular Movies, Popular Series, Trending Movies, Trending Series, Top Rated Movies, Top Rated Series
 - **Genre filtering** on every catalog, with the genre list rebuilt on each refresh rather than hardcoded. Genres are collected from the popular charts, so an uncommon one can come back empty on the shorter Trending and Top Rated rows.
 - **Search** across all catalogs, matching title, plot, cast and director
-- **Decade filtering** on IMDb Top Rated Movies, combined with genre. This catalog searches IMDb for the 30 highest-rated matching movies with at least 5,000 votes, rather than filtering the popular chart. Each selection requests fresh IMDb results without a search cache; search matches title text.
+- **Decade filtering** on IMDb Top Rated Movies and Series, combined with genre. These catalogs search IMDb for the 30 highest-rated matching titles with ratings of at least 7.0 and at least 5,000 votes, rather than filtering the popular chart. Each selection requests fresh IMDb results without a search cache; search matches title text.
 - **Rich metadata**: plot, genres, runtime, cast, director, certificate, year, poster and IMDb rating
 - **Readable runtimes**: `1h 30min` rather than `90 min`
 - **Locale pinned to en-US**, so titles and certificates do not localise to wherever the server happens to sit
@@ -119,7 +119,7 @@ Edge cache headers on the catalog and manifest routes keep that from happening o
 
 Catalog endpoints take optional extras as `/:extra.json`, for example
 `/catalog/movie/imdb-popular-movies/genre=Action&skip=20.json`. Supported keys are `genre`, `search`
-and `skip`. Top Rated Movies additionally supports `decade` (for example, `1990s`); its total result cap is 30, and changing filters performs a new search every time.
+and `skip`. Top Rated Movies and Series additionally support `decade` (for example, `1990s`); their total result cap is 30, and changing filters performs a new search every time.
 
 `/status` reports each catalog's length separately, so a monitor can alert on a single row shrinking
 rather than only on the whole snapshot going stale.
@@ -135,14 +135,11 @@ previous snapshot serving rather than half-updating it.
 | Popular | `MOST_POPULAR_MOVIES` and `MOST_POPULAR_TV_SHOWS` charts | IMDb's own popularity rank, preserved | up to 100 |
 | Trending | `topTrendingTitles`, hourly window, worldwide traffic | IMDb's own trending rank, preserved | up to 40 |
 | Top Rated Movies | IMDb advanced title search, filtered by genre and decade | IMDb rating, descending | up to 30 |
-| Top Rated Series | the popular series chart, re-ordered | IMDb rating, descending | up to 40 |
+| Top Rated Series | IMDb advanced title search for TV series and miniseries, filtered by genre and premiere decade | IMDb rating, descending | up to 30 |
 
 Two details worth knowing:
 
-**Top Rated Series is not a rating threshold.** It is "popular right now and also good", the popularity
-chart sorted by rating. A fixed cutoff was tried and does not work, because IMDb TV ratings run
-roughly a full point above film ratings, so any threshold that trims movies sensibly leaves most
-series untouched.
+**Top Rated searches apply a minimum IMDb rating of 7.0.** Series decade filters use the premiere date, including series that continued into later decades.
 
 **Trending and Top Rated require 5,000 votes.** IMDb's trending feed includes announcements with no
 audience yet, which would otherwise lead the row on rank alone. The floor drops them. Popular
