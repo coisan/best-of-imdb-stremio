@@ -332,6 +332,7 @@ async function searchTopTitles(type, extra) {
   if (extra.decade && !TOP_RATED_DECADES.includes(extra.decade)) return [];
   const constraints = {
     titleTypeConstraint: { anyTitleTypeIds: type === "series" ? ["tvSeries", "tvMiniSeries"] : ["movie"] },
+    languageConstraint: { excludeLanguages: [...EXCLUDED_LANGUAGE_IDS] },
     userRatingsConstraint: { ratingsCountRange: { min: type === "movie" ? 50000 : 25000 }, aggregateRatingRange: { min: 7.0 } },
   };
   if (extra.genre) constraints.genreConstraint = { allGenreIds: [extra.genre] };
