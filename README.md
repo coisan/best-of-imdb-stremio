@@ -15,7 +15,7 @@
 - **Six catalogs**: Popular Movies, Popular Series, Trending Movies, Trending Series, Top Rated Movies, Top Rated Series
 - **Genre filtering** on every catalog, with the genre list rebuilt on each refresh rather than hardcoded. Genres are collected from the popular charts, so an uncommon one can come back empty on the shorter Trending and Top Rated rows.
 - **Search** across all catalogs, matching title, plot, cast and director
-- **Decade filtering** on IMDb Top Rated Movies, combined with genre and search. Options come from current Top Rated movie years (for example, `1990s`), and filtering happens before pagination.
+- **Decade filtering** on IMDb Top Rated Movies, combined with genre and search. Options come from eligible movies in the popular chart (for example, `1990s`). Each genre, decade, or search selection recomputes the best 40 matching movies from that chart before pagination. Fewer than 40 results are returned when fewer qualify; the shared IMDb snapshot still refreshes every six hours.
 - **Rich metadata**: plot, genres, runtime, cast, director, certificate, year, poster and IMDb rating
 - **Readable runtimes**: `1h 30min` rather than `90 min`
 - **Locale pinned to en-US**, so titles and certificates do not localise to wherever the server happens to sit
