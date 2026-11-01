@@ -131,7 +131,7 @@ function parseExtra(str) {
 }
 
 function stripInternal({ _votes, ...clean }) {
-  // Include the display field for snapshots saved before releaseInfo was added.
+  // Ensure every preview includes Stremio’s display-year field.
   if (!clean.releaseInfo && clean.year) clean.releaseInfo = String(clean.year);
   if (clean.languages?.length) {
     // Explicit links preserve existing metadata groups and put languages after genres.

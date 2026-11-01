@@ -4,6 +4,12 @@
 
 **Version 1.0.0** · An independent Stremio add-on for highly rated movies and series.
 
+**Website:** [bestofimdb.netlify.app](https://bestofimdb.netlify.app/) · **Install URL:** `https://bestofimdb.netlify.app/manifest.json`
+
+## Install in Stremio
+
+Open [Best of IMDb](https://bestofimdb.netlify.app/) and select **Install to Stremio**, or paste `https://bestofimdb.netlify.app/manifest.json` into Stremio’s add-on search. This hosted HTTPS address also works on other devices without running a local server.
+
 Best of IMDb is a standalone spin-off of [IMDb Popular](https://github.com/SSanderV/imdb-popular-stremio). It searches IMDb's database live instead of selecting from the current popularity charts. It is not affiliated with IMDb or the official IMDb Top 250 charts.
 
 ## Catalogues and selection

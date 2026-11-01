@@ -15,5 +15,13 @@
     "express": "^5.2.1",
     "serverless-http": "^4.0.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "homepage": "https://bestofimdb.netlify.app/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coisan/best-of-imdb-stremio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/coisan/best-of-imdb-stremio/issues"
+  }
 }
