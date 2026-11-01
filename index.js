@@ -584,7 +584,7 @@ app.get("/catalog/:type/:id/:extra.json", async (req, res) => {
   hits.catalog++;
   res.set("Cache-Control", "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
   res.json({
-    metas: resolveCatalog(req.params.type, req.params.id, parseExtra(req.params.extra)),
+    metas: await resolveCatalog(req.params.type, req.params.id, parseExtra(req.params.extra)),
   });
 });
 
