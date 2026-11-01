@@ -181,6 +181,7 @@ async function gql(query, variables) {
     headers: IMDB_HEADERS,
     body: JSON.stringify({ query, variables }),
     signal: AbortSignal.timeout(15000),
+    cache: "no-store",
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.json();
@@ -291,7 +292,6 @@ function stripInternal({ _votes, ...clean }) {
 }
 
 const SEARCH_LIMIT = 30;
-const searchCache = new Map();
 const MOVIE_GENRES = ["Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Musical", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western"];
 const MOVIE_DECADES = Array.from({ length: Math.floor((new Date().getFullYear() - 1870) / 10) + 1 }, (_, i) => String(Math.floor(new Date().getFullYear() / 10) * 10 - i * 10) + "s");
 
@@ -310,27 +310,16 @@ async function searchTopMovies(extra) {
     constraints.releaseDateConstraint = { releaseDateRange: { start: year + "-01-01", end: (year + 9) + "-12-31" } };
   }
   if (extra.search) constraints.titleTextConstraint = { searchTerm: extra.search };
-  const key = JSON.stringify(constraints);
-  let entry = searchCache.get(key);
-  if (!entry || entry.expires <= Date.now()) {
-    const query = `query TopMovies($constraints: AdvancedTitleSearchConstraints!) {
-      advancedTitleSearch(first: 30, constraints: $constraints, sort: { sortBy: USER_RATING, sortOrder: DESC }) {
-        edges { node { title { ${TITLE_FIELDS} } } }
-      }
-    }`;
-    entry = { expires: Date.now() + CACHE_TTL };
-    entry.promise = gql(query, { constraints }).then((data) => {
-      if (!data.advancedTitleSearch?.edges) throw new Error("IMDb returned no search data");
-      return data.advancedTitleSearch.edges.map((e) => nodeToMeta(e.node?.title, "movie")).filter(Boolean).map(stripInternal);
-    }).catch((error) => {
-      if (searchCache.get(key) === entry) searchCache.delete(key);
-      throw error;
-    });
-    // Bound memory while sharing in-flight requests for identical selections.
-    if (searchCache.size >= 100) searchCache.delete(searchCache.keys().next().value);
-    searchCache.set(key, entry);
-  }
-  return (await entry.promise).slice(Math.max(0, skip));
+  const query = `query TopMovies($constraints: AdvancedTitleSearchConstraints!) {
+    advancedTitleSearch(first: 30, constraints: $constraints, sort: { sortBy: USER_RATING, sortOrder: DESC }) {
+      edges { node { title { ${TITLE_FIELDS} } } }
+    }
+  }`;
+  const data = await gql(query, { constraints });
+  if (!data.advancedTitleSearch?.edges) throw new Error("IMDb returned no search data");
+  return data.advancedTitleSearch.edges
+    .map((e) => nodeToMeta(e.node?.title, "movie"))
+    .filter(Boolean).map(stripInternal).slice(Math.max(0, skip));
 }
 
 async function resolveCatalog(type, id, extra) {
@@ -459,7 +448,7 @@ app.get("/", (req, res) => {
   const { proto, host } = originOf(req);
   const manifest = buildManifest(proto, host);
   res.setHeader("Content-Type", "text/html");
-  res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=86400");
+  res.setHeader("Cache-Control", "no-store");
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -562,34 +551,32 @@ app.get("/logo.png", async (_, res) => {
   await ensureLogo();
   if (!logoBuf) return res.status(404).end();
   res.set("Content-Type", "image/png");
-  res.set("Cache-Control", "public, max-age=604800, s-maxage=604800");
+  res.set("Cache-Control", "no-store");
   res.send(logoBuf);
 });
 
-// Local development should reflect manifest and catalog changes immediately.
-function catalogCacheControl(req, res, value) {
-  const host = (req.hostname || "").toLowerCase();
-  const local = host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "::1";
-  res.set("Cache-Control", local ? "no-store" : value);
+// Always request current manifests and catalog results from the server.
+function catalogCacheControl(req, res) {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
 }
 
 // Routes ---
 app.get("/manifest.json", (req, res) => {
   hits.manifest++;
-  catalogCacheControl(req, res, "public, max-age=86400, s-maxage=86400");
+  catalogCacheControl(req, res);
   const { proto, host } = originOf(req);
   res.json(buildManifest(proto, host));
 });
 
 app.get("/catalog/:type/:id.json", async (req, res) => {
   hits.catalog++;
-  catalogCacheControl(req, res, "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
+  catalogCacheControl(req, res);
   res.json({ metas: await resolveCatalog(req.params.type, req.params.id, {}) });
 });
 
 app.get("/catalog/:type/:id/:extra.json", async (req, res) => {
   hits.catalog++;
-  catalogCacheControl(req, res, "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
+  catalogCacheControl(req, res);
   res.json({
     metas: await resolveCatalog(req.params.type, req.params.id, parseExtra(req.params.extra)),
   });
