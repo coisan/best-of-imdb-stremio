@@ -19,7 +19,13 @@ test("Netlify adapter serves manifest, installation page, status and binary logo
   assert.equal(manifest.version, "1.0.0");
   assert.equal(manifest.catalogs.length, 2);
   assert.equal(manifest.logo, "https://best-of-imdb.example/logo.png");
-  assert.match((await request("/")).body, /Best of IMDb/);
+  const homepage = (await request("/")).body;
+  assert.ok(homepage.includes('href="stremio://best-of-imdb.example/manifest.json"'));
+  const links = [...homepage.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
+  const webLink = links.find((url) => url.startsWith("https://web.stremio.com/"));
+  const params = new URLSearchParams(new URL(webLink).hash.split("?")[1]);
+  assert.equal(params.get("addon"), "https://best-of-imdb.example/manifest.json");
+  assert.match(homepage, /Install in Stremio Web/);
   assert.equal(JSON.parse((await request("/status")).body).mode, "live-search");
   const logo = await request("/logo.png");
   assert.equal(logo.statusCode, 200);

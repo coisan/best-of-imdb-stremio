@@ -235,6 +235,7 @@ const LOGO_PATH = path.join(process.env.LAMBDA_TASK_ROOT || __dirname, "logo.png
 app.get("/", (req, res) => {
   const { proto, host } = originOf(req);
   const manifest = buildManifest(proto, host);
+  const webInstallUrl = "https://web.stremio.com/#/addons?addon=" + encodeURIComponent(`${proto}://${host}/manifest.json`);
   res.setHeader("Content-Type", "text/html");
   res.setHeader("Cache-Control", "no-store");
   res.send(`<!DOCTYPE html>
@@ -278,12 +279,18 @@ app.get("/", (req, res) => {
       line-height: 1.6;
       margin-bottom: 2rem;
     }
+    .install-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem;
+    }
     .install-btn {
       display: inline-block;
       background: #e8bc4b;
       color: #10131c;
       text-decoration: none;
-      padding: 0.9rem 2.5rem;
+      padding: 0.9rem 1.5rem;
       border-radius: 8px;
       font-size: 1.1rem;
       font-weight: 600;
@@ -325,7 +332,10 @@ app.get("/", (req, res) => {
     <img src="/logo.png" alt="${manifest.name}" class="logo">
     <h1>${manifest.name}</h1>
     <p class="description">${manifest.description}</p>
-    <a href="stremio://${host}/manifest.json" class="install-btn">Install to Stremio</a>
+    <div class="install-actions">
+      <a href="stremio://${host}/manifest.json" class="install-btn">Install in Stremio App</a>
+      <a href="${webInstallUrl}" class="install-btn" target="_blank" rel="noopener noreferrer">Install in Stremio Web</a>
+    </div>
     <div class="catalogs">
       ${manifest.catalogs.map((c) => `<span class="catalog-tag">${c.name}</span>`).join("\n      ")}
     </div>
