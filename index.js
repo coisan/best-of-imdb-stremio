@@ -304,6 +304,12 @@ function resolveCatalog(type, id, extra) {
     list = list.filter((m) => m.genres && m.genres.includes(extra.genre));
   }
 
+  if (type === "movie" && id === "imdb-top-rated-movies" && extra.decade) {
+    if (!/^\d{3}0s$/.test(extra.decade)) return [];
+    const start = Number(extra.decade.slice(0, 4));
+    list = list.filter((m) => /^\d{4}$/.test(m.year) && Number(m.year) >= start && Number(m.year) < start + 10);
+  }
+
   // Search matches title, description, cast, and director
   if (extra.search) {
     const q = extra.search.toLowerCase();
@@ -334,6 +340,10 @@ function buildManifest(proto, host) {
   ];
   const movieExtras = extrasFor("movie");
   const seriesExtras = extrasFor("series");
+  const decades = [...new Set(store.topRated.movie
+    .filter((m) => /^\d{4}$/.test(m.year))
+    .map((m) => String(Math.floor(Number(m.year) / 10) * 10) + "s"))].sort().reverse();
+  const topRatedMovieExtras = [movieExtras[0], { name: "decade", options: decades }, ...movieExtras.slice(1)];
 
   return {
     stremioAddonsConfig: {
@@ -354,7 +364,7 @@ function buildManifest(proto, host) {
       { type: "series", id: "imdb-popular-series", name: "IMDb Popular Series", extra: seriesExtras },
       { type: "movie", id: "imdb-trending-movies", name: "IMDb Trending Movies", extra: movieExtras },
       { type: "series", id: "imdb-trending-series", name: "IMDb Trending Series", extra: seriesExtras },
-      { type: "movie", id: "imdb-top-rated-movies", name: "IMDb Top Rated Movies", extra: movieExtras },
+      { type: "movie", id: "imdb-top-rated-movies", name: "IMDb Top Rated Movies", extra: topRatedMovieExtras },
       { type: "series", id: "imdb-top-rated-series", name: "IMDb Top Rated Series", extra: seriesExtras },
     ],
     behaviorHints: { configurable: false },
