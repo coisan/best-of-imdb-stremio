@@ -120,6 +120,16 @@ function creditNames(groups, pattern) {
   return names.length ? names : null;
 }
 
+// Spoken-language exclusions, including India's scheduled languages and common regional languages.
+const EXCLUDED_LANGUAGE_IDS = new Set([
+  "as", "bn", "brx", "doi", "gu", "hi", "kn", "ks", "kok", "mai", "ml", "mni",
+  "mr", "ne", "or", "pa", "sa", "sat", "sd", "ta", "te", "ur", "bho", "awa",
+  "hne", "mag", "raj", "mwr", "tcy", "kfy", "gbm", "kha", "lus", "grt", "lep", "bh",
+]);
+function hasExcludedLanguage(meta) {
+  return (meta.languages || []).some((language) => EXCLUDED_LANGUAGE_IDS.has(language.id));
+}
+
 function nodeToMeta(node, type) {
   if (!node || !node.id) return null;
   const meta = { id: node.id, type, name: node.titleText?.text || "Unknown" };
@@ -140,7 +150,8 @@ function nodeToMeta(node, type) {
     .filter(Boolean);
   if (genres.length) meta.genres = genres;
   const languages = (node.spokenLanguages?.spokenLanguages || []).filter((l) => l.id && l.text);
-  if (languages.length) meta.languages = languages;
+  meta.languages = languages;
+  if (hasExcludedLanguage(meta)) return null;
 
   const seconds = node.runtime?.seconds;
   if (seconds) {
@@ -227,7 +238,7 @@ async function fetchTrending() {
 function saveCache() {
   if (IS_VERCEL) return;
   try {
-    fs.writeFileSync(CACHE_PATH, JSON.stringify(store));
+    fs.writeFileSync(CACHE_PATH, JSON.stringify({ ...store, languageFilterVersion: 1 }));
   } catch (e) {
     console.error("[cache] Write failed:", e.message);
   }
@@ -237,7 +248,7 @@ function loadCache() {
   if (!fs.existsSync(CACHE_PATH)) return false;
   try {
     const saved = JSON.parse(fs.readFileSync(CACHE_PATH, "utf8"));
-    if (!saved.popular?.movie?.length) return false;
+    if (!saved.popular?.movie?.length || saved.languageFilterVersion !== 1) return false;
     Object.assign(store, saved);
     const age = Math.round((Date.now() - store.fetchedAt) / 3600000);
     console.log(`[cache] Restored ${store.popular.movie.length} movies, ${age}h old`);
