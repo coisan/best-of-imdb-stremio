@@ -15,7 +15,7 @@
 - **Six catalogs**: Popular Movies, Popular Series, Trending Movies, Trending Series, Top Rated Movies, Top Rated Series
 - **Genre filtering** on every catalog, with the genre list rebuilt on each refresh rather than hardcoded. Genres are collected from the popular charts, so an uncommon one can come back empty on the shorter Trending and Top Rated rows.
 - **Search** across all catalogs, matching title, plot, cast and director
-- **Decade filtering** on IMDb Top Rated Movies, combined with genre. This catalog searches IMDb for the 30 highest-rated matching movies with at least 5,000 votes, rather than filtering the popular chart. Identical selections share a six-hour cache; search matches title text.
+- **Decade filtering** on IMDb Top Rated Movies, combined with genre. This catalog searches IMDb for the 30 highest-rated matching movies with at least 5,000 votes, rather than filtering the popular chart. Each selection requests fresh IMDb results without a search cache; search matches title text.
 - **Rich metadata**: plot, genres, runtime, cast, director, certificate, year, poster and IMDb rating
 - **Readable runtimes**: `1h 30min` rather than `90 min`
 - **Locale pinned to en-US**, so titles and certificates do not localise to wherever the server happens to sit
@@ -119,7 +119,7 @@ Edge cache headers on the catalog and manifest routes keep that from happening o
 
 Catalog endpoints take optional extras as `/:extra.json`, for example
 `/catalog/movie/imdb-popular-movies/genre=Action&skip=20.json`. Supported keys are `genre`, `search`
-and `skip`. Top Rated Movies additionally supports `decade` (for example, `1990s`); its total result cap is 30, and changing filters performs a new search unless cached.
+and `skip`. Top Rated Movies additionally supports `decade` (for example, `1990s`); its total result cap is 30, and changing filters performs a new search every time.
 
 `/status` reports each catalog's length separately, so a monitor can alert on a single row shrinking
 rather than only on the whole snapshot going stale.
