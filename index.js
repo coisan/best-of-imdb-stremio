@@ -292,16 +292,16 @@ function stripInternal({ _votes, ...clean }) {
 }
 
 const SEARCH_LIMIT = 30;
-const MOVIE_GENRES = ["Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Musical", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western"];
-const MOVIE_DECADES = Array.from({ length: Math.floor((new Date().getFullYear() - 1910) / 10) + 1 }, (_, i) => String(Math.floor(new Date().getFullYear() / 10) * 10 - i * 10) + "s");
+const TOP_RATED_GENRES = ["Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Musical", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western"];
+const TOP_RATED_DECADES = Array.from({ length: Math.floor((new Date().getFullYear() - 1910) / 10) + 1 }, (_, i) => String(Math.floor(new Date().getFullYear() / 10) * 10 - i * 10) + "s");
 
-async function searchTopMovies(extra) {
+async function searchTopTitles(type, extra) {
   const skip = Number.parseInt(extra.skip, 10) || 0;
   if (skip >= SEARCH_LIMIT) return [];
-  if (extra.genre && !MOVIE_GENRES.includes(extra.genre)) return [];
-  if (extra.decade && !MOVIE_DECADES.includes(extra.decade)) return [];
+  if (extra.genre && !TOP_RATED_GENRES.includes(extra.genre)) return [];
+  if (extra.decade && !TOP_RATED_DECADES.includes(extra.decade)) return [];
   const constraints = {
-    titleTypeConstraint: { anyTitleTypeIds: ["movie"] },
+    titleTypeConstraint: { anyTitleTypeIds: type === "series" ? ["tvSeries", "tvMiniSeries"] : ["movie"] },
     userRatingsConstraint: { ratingsCountRange: { min: MIN_VOTES }, aggregateRatingRange: { min: 7.0 } },
   };
   if (extra.genre) constraints.genreConstraint = { allGenreIds: [extra.genre] };
@@ -310,7 +310,7 @@ async function searchTopMovies(extra) {
     constraints.releaseDateConstraint = { releaseDateRange: { start: year + "-01-01", end: (year + 9) + "-12-31" } };
   }
   if (extra.search) constraints.titleTextConstraint = { searchTerm: extra.search };
-  const query = `query TopMovies($constraints: AdvancedTitleSearchConstraints!) {
+  const query = `query TopTitles($constraints: AdvancedTitleSearchConstraints!) {
     advancedTitleSearch(first: 30, constraints: $constraints, sort: { sortBy: USER_RATING, sortOrder: DESC }) {
       edges { node { title { ${TITLE_FIELDS} } } }
     }
@@ -318,12 +318,13 @@ async function searchTopMovies(extra) {
   const data = await gql(query, { constraints });
   if (!data.advancedTitleSearch?.edges) throw new Error("IMDb returned no search data");
   return data.advancedTitleSearch.edges
-    .map((e) => nodeToMeta(e.node?.title, "movie"))
+    .map((e) => nodeToMeta(e.node?.title, type))
     .filter(Boolean).map(stripInternal).slice(Math.max(0, skip));
 }
 
 async function resolveCatalog(type, id, extra) {
-  if (type === "movie" && id === "imdb-top-rated-movies") return searchTopMovies(extra);
+  if (type === "movie" && id === "imdb-top-rated-movies") return searchTopTitles(type, extra);
+  if (type === "series" && id === "imdb-top-rated-series") return searchTopTitles(type, extra);
   if (type !== "movie" && type !== "series") return [];
 
   let list;
@@ -368,7 +369,7 @@ function buildManifest(proto, host) {
   ];
   const movieExtras = extrasFor("movie");
   const seriesExtras = extrasFor("series");
-  const topRatedMovieExtras = [{ name: "genre", options: MOVIE_GENRES }, { name: "decade", options: MOVIE_DECADES }, ...movieExtras.slice(1)];
+  const topRatedMovieExtras = [{ name: "genre", options: TOP_RATED_GENRES }, { name: "decade", options: TOP_RATED_DECADES }, ...movieExtras.slice(1)];
 
   return {
     stremioAddonsConfig: {
@@ -390,7 +391,7 @@ function buildManifest(proto, host) {
       { type: "movie", id: "imdb-trending-movies", name: "IMDb Trending Movies", extra: movieExtras },
       { type: "series", id: "imdb-trending-series", name: "IMDb Trending Series", extra: seriesExtras },
       { type: "movie", id: "imdb-top-rated-movies", name: "IMDb Top Rated Movies", extra: topRatedMovieExtras },
-      { type: "series", id: "imdb-top-rated-series", name: "IMDb Top Rated Series", extra: seriesExtras },
+      { type: "series", id: "imdb-top-rated-series", name: "IMDb Top Rated Series", extra: topRatedMovieExtras },
     ],
     behaviorHints: { configurable: false },
     idPrefixes: ["tt"],
@@ -413,7 +414,7 @@ app.use(async (req, res, next) => {
   res.setHeader("Access-Control-Allow-Headers", "*");
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   console.log(`[REQ] ${req.method} ${req.url} from ${ip}`);
-  if (/^\/catalog\/movie\/imdb-top-rated-movies(?:\/|\.json$)/.test(req.path)) return next();
+  if (/^\/catalog\/(?:movie\/imdb-top-rated-movies|series\/imdb-top-rated-series)(?:\/|\.json$)/.test(req.path)) return next();
   try { await ensureData(); } catch (e) { console.error("[middleware] ensureData error:", e.message); }
   next();
 });
