@@ -293,7 +293,7 @@ function stripInternal({ _votes, ...clean }) {
 
 const SEARCH_LIMIT = 30;
 const MOVIE_GENRES = ["Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Musical", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western"];
-const MOVIE_DECADES = Array.from({ length: Math.floor((new Date().getFullYear() - 1870) / 10) + 1 }, (_, i) => String(Math.floor(new Date().getFullYear() / 10) * 10 - i * 10) + "s");
+const MOVIE_DECADES = Array.from({ length: Math.floor((new Date().getFullYear() - 1910) / 10) + 1 }, (_, i) => String(Math.floor(new Date().getFullYear() / 10) * 10 - i * 10) + "s");
 
 async function searchTopMovies(extra) {
   const skip = Number.parseInt(extra.skip, 10) || 0;
