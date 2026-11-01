@@ -1,4 +1,4 @@
-# Best of IMDb
+# Best of IMDb - Stremio add-on
 
 <p align="center"><img src="logo.png" alt="Best of IMDb" width="160"></p>
 
