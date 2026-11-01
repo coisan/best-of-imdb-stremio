@@ -295,6 +295,7 @@ function resolveCatalog(type, id, extra) {
   let list;
   if (id.startsWith("imdb-popular-")) list = store.popular[type];
   else if (id.startsWith("imdb-trending-")) list = store.trending[type];
+  else if (id === "imdb-top-rated-movies" && type === "movie") list = store.popular.movie;
   else if (id.startsWith("imdb-top-rated-")) list = store.topRated[type];
   else return [];
 
@@ -322,6 +323,9 @@ function resolveCatalog(type, id, extra) {
     );
   }
 
+  // Select the best 40 from the matching pool, rather than filtering a fixed top 40.
+  if (type === "movie" && id === "imdb-top-rated-movies") list = deriveTopRated(list);
+
   const skip = parseInt(extra.skip) || 0;
   if (skip > 0) list = list.slice(skip);
 
@@ -340,7 +344,7 @@ function buildManifest(proto, host) {
   ];
   const movieExtras = extrasFor("movie");
   const seriesExtras = extrasFor("series");
-  const decades = [...new Set(store.topRated.movie
+  const decades = [...new Set(store.popular.movie.filter((m) => m.imdbRating && m._votes >= MIN_VOTES)
     .filter((m) => /^\d{4}$/.test(m.year))
     .map((m) => String(Math.floor(Number(m.year) / 10) * 10) + "s"))].sort().reverse();
   const topRatedMovieExtras = [movieExtras[0], { name: "decade", options: decades }, ...movieExtras.slice(1)];
