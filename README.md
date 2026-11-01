@@ -15,7 +15,7 @@
 - **Six catalogs**: Popular Movies, Popular Series, Trending Movies, Trending Series, Top Rated Movies, Top Rated Series
 - **Genre filtering** on every catalog, with the genre list rebuilt on each refresh rather than hardcoded. Genres are collected from the popular charts, so an uncommon one can come back empty on the shorter Trending and Top Rated rows.
 - **Search** across all catalogs, matching title, plot, cast and director
-- **Decade filtering** on IMDb Top Rated Movies and Series, combined with genre. These catalogs search IMDb for the 30 highest-rated matching titles with ratings of at least 7.0 and at least 5,000 votes, rather than filtering the popular chart. Each selection requests fresh IMDb results without a search cache; search matches title text.
+- **Decade filtering** on IMDb Top Rated Movies and Series, combined with genre. These catalogs search IMDb for the 30 highest-rated matching titles with ratings of at least 7.0 and at least 50,000 votes for movies or 25,000 for series, rather than filtering the popular chart. Each selection requests fresh IMDb results without a search cache; search matches title text.
 - **Rich metadata**: plot, genres, runtime, cast, director, certificate, year, poster and IMDb rating
 - **Readable runtimes**: `1h 30min` rather than `90 min`
 - **Locale pinned to en-US**, so titles and certificates do not localise to wherever the server happens to sit
@@ -141,7 +141,7 @@ Two details worth knowing:
 
 **Top Rated searches apply a minimum IMDb rating of 7.0.** Series decade filters use the premiere date, including series that continued into later decades.
 
-**Trending and Top Rated require 5,000 votes.** IMDb's trending feed includes announcements with no
+**Trending requires 5,000 votes; Top Rated requires 50,000 for movies and 25,000 for series.** IMDb's trending feed includes announcements with no
 audience yet, which would otherwise lead the row on rank alone. The floor drops them. Popular
 catalogs are not filtered, since IMDb's own chart already handles that.
 
