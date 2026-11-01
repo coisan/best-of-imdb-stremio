@@ -566,23 +566,30 @@ app.get("/logo.png", async (_, res) => {
   res.send(logoBuf);
 });
 
+// Local development should reflect manifest and catalog changes immediately.
+function catalogCacheControl(req, res, value) {
+  const host = (req.hostname || "").toLowerCase();
+  const local = host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "::1";
+  res.set("Cache-Control", local ? "no-store" : value);
+}
+
 // Routes ---
 app.get("/manifest.json", (req, res) => {
   hits.manifest++;
-  res.set("Cache-Control", "public, max-age=86400, s-maxage=86400");
+  catalogCacheControl(req, res, "public, max-age=86400, s-maxage=86400");
   const { proto, host } = originOf(req);
   res.json(buildManifest(proto, host));
 });
 
 app.get("/catalog/:type/:id.json", async (req, res) => {
   hits.catalog++;
-  res.set("Cache-Control", "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
+  catalogCacheControl(req, res, "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
   res.json({ metas: await resolveCatalog(req.params.type, req.params.id, {}) });
 });
 
 app.get("/catalog/:type/:id/:extra.json", async (req, res) => {
   hits.catalog++;
-  res.set("Cache-Control", "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
+  catalogCacheControl(req, res, "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
   res.json({
     metas: await resolveCatalog(req.params.type, req.params.id, parseExtra(req.params.extra)),
   });
