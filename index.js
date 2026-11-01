@@ -340,7 +340,7 @@ app.get("/", (req, res) => {
       ${manifest.catalogs.map((c) => `<span class="catalog-tag">${c.name}</span>`).join("\n      ")}
     </div>
   </div>
-  <footer>v${manifest.version} &middot; <a href="/manifest.json">Manifest</a></footer>
+  <footer>v${manifest.version} &middot; <a href="/manifest.json">Manifest</a> &middot; <a href="https://github.com/coisan/best-of-imdb-stremio" target="_blank" rel="noopener noreferrer">View on GitHub</a></footer>
 </body>
 </html>`);
 });
