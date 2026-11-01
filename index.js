@@ -125,7 +125,10 @@ function nodeToMeta(node, type) {
 
   if (node.primaryImage?.url) meta.poster = node.primaryImage.url;
   if (node.plot?.plotText?.plainText) meta.description = node.plot.plotText.plainText;
-  if (node.releaseYear?.year) meta.year = String(node.releaseYear.year);
+  if (node.releaseYear?.year) {
+    meta.year = String(node.releaseYear.year);
+    meta.releaseInfo = meta.year;
+  }
   if (node.certificate?.rating) meta.certification = node.certificate.rating;
 
   const rating = node.ratingsSummary?.aggregateRating;
@@ -288,6 +291,8 @@ function parseExtra(str) {
 }
 
 function stripInternal({ _votes, ...clean }) {
+  // Include the display field for snapshots saved before releaseInfo was added.
+  if (!clean.releaseInfo && clean.year) clean.releaseInfo = String(clean.year);
   return clean;
 }
 
