@@ -180,6 +180,7 @@ async function gql(query, variables) {
     method: "POST",
     headers: IMDB_HEADERS,
     body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.json();
@@ -289,13 +290,56 @@ function stripInternal({ _votes, ...clean }) {
   return clean;
 }
 
-function resolveCatalog(type, id, extra) {
+const SEARCH_LIMIT = 30;
+const searchCache = new Map();
+const MOVIE_GENRES = ["Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Musical", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western"];
+const MOVIE_DECADES = Array.from({ length: Math.floor((new Date().getFullYear() - 1870) / 10) + 1 }, (_, i) => String(Math.floor(new Date().getFullYear() / 10) * 10 - i * 10) + "s");
+
+async function searchTopMovies(extra) {
+  const skip = Number.parseInt(extra.skip, 10) || 0;
+  if (skip >= SEARCH_LIMIT) return [];
+  if (extra.genre && !MOVIE_GENRES.includes(extra.genre)) return [];
+  if (extra.decade && !MOVIE_DECADES.includes(extra.decade)) return [];
+  const constraints = {
+    titleTypeConstraint: { anyTitleTypeIds: ["movie"] },
+    userRatingsConstraint: { ratingsCountRange: { min: MIN_VOTES } },
+  };
+  if (extra.genre) constraints.genreConstraint = { allGenreIds: [extra.genre] };
+  if (extra.decade) {
+    const year = Number(extra.decade.slice(0, 4));
+    constraints.releaseDateConstraint = { releaseDateRange: { start: year + "-01-01", end: (year + 9) + "-12-31" } };
+  }
+  if (extra.search) constraints.titleTextConstraint = { searchTerm: extra.search };
+  const key = JSON.stringify(constraints);
+  let entry = searchCache.get(key);
+  if (!entry || entry.expires <= Date.now()) {
+    const query = `query TopMovies($constraints: AdvancedTitleSearchConstraints!) {
+      advancedTitleSearch(first: 30, constraints: $constraints, sort: { sortBy: USER_RATING, sortOrder: DESC }) {
+        edges { node { title { ${TITLE_FIELDS} } } }
+      }
+    }`;
+    entry = { expires: Date.now() + CACHE_TTL };
+    entry.promise = gql(query, { constraints }).then((data) => {
+      if (!data.advancedTitleSearch?.edges) throw new Error("IMDb returned no search data");
+      return data.advancedTitleSearch.edges.map((e) => nodeToMeta(e.node?.title, "movie")).filter(Boolean).map(stripInternal);
+    }).catch((error) => {
+      if (searchCache.get(key) === entry) searchCache.delete(key);
+      throw error;
+    });
+    // Bound memory while sharing in-flight requests for identical selections.
+    if (searchCache.size >= 100) searchCache.delete(searchCache.keys().next().value);
+    searchCache.set(key, entry);
+  }
+  return (await entry.promise).slice(Math.max(0, skip));
+}
+
+async function resolveCatalog(type, id, extra) {
+  if (type === "movie" && id === "imdb-top-rated-movies") return searchTopMovies(extra);
   if (type !== "movie" && type !== "series") return [];
 
   let list;
   if (id.startsWith("imdb-popular-")) list = store.popular[type];
   else if (id.startsWith("imdb-trending-")) list = store.trending[type];
-  else if (id === "imdb-top-rated-movies" && type === "movie") list = store.popular.movie;
   else if (id.startsWith("imdb-top-rated-")) list = store.topRated[type];
   else return [];
 
@@ -303,12 +347,6 @@ function resolveCatalog(type, id, extra) {
 
   if (extra.genre) {
     list = list.filter((m) => m.genres && m.genres.includes(extra.genre));
-  }
-
-  if (type === "movie" && id === "imdb-top-rated-movies" && extra.decade) {
-    if (!/^\d{3}0s$/.test(extra.decade)) return [];
-    const start = Number(extra.decade.slice(0, 4));
-    list = list.filter((m) => /^\d{4}$/.test(m.year) && Number(m.year) >= start && Number(m.year) < start + 10);
   }
 
   // Search matches title, description, cast, and director
@@ -322,9 +360,6 @@ function resolveCatalog(type, id, extra) {
         (m.director && m.director.some((d) => d.toLowerCase().includes(q)))
     );
   }
-
-  // Select the best 40 from the matching pool, rather than filtering a fixed top 40.
-  if (type === "movie" && id === "imdb-top-rated-movies") list = deriveTopRated(list);
 
   const skip = parseInt(extra.skip) || 0;
   if (skip > 0) list = list.slice(skip);
@@ -344,10 +379,7 @@ function buildManifest(proto, host) {
   ];
   const movieExtras = extrasFor("movie");
   const seriesExtras = extrasFor("series");
-  const decades = [...new Set(store.popular.movie.filter((m) => m.imdbRating && m._votes >= MIN_VOTES)
-    .filter((m) => /^\d{4}$/.test(m.year))
-    .map((m) => String(Math.floor(Number(m.year) / 10) * 10) + "s"))].sort().reverse();
-  const topRatedMovieExtras = [movieExtras[0], { name: "decade", options: decades }, ...movieExtras.slice(1)];
+  const topRatedMovieExtras = [{ name: "genre", options: MOVIE_GENRES }, { name: "decade", options: MOVIE_DECADES }, ...movieExtras.slice(1)];
 
   return {
     stremioAddonsConfig: {
@@ -392,6 +424,7 @@ app.use(async (req, res, next) => {
   res.setHeader("Access-Control-Allow-Headers", "*");
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   console.log(`[REQ] ${req.method} ${req.url} from ${ip}`);
+  if (/^\/catalog\/movie\/imdb-top-rated-movies(?:\/|\.json$)/.test(req.path)) return next();
   try { await ensureData(); } catch (e) { console.error("[middleware] ensureData error:", e.message); }
   next();
 });
@@ -541,13 +574,13 @@ app.get("/manifest.json", (req, res) => {
   res.json(buildManifest(proto, host));
 });
 
-app.get("/catalog/:type/:id.json", (req, res) => {
+app.get("/catalog/:type/:id.json", async (req, res) => {
   hits.catalog++;
   res.set("Cache-Control", "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
-  res.json({ metas: resolveCatalog(req.params.type, req.params.id, {}) });
+  res.json({ metas: await resolveCatalog(req.params.type, req.params.id, {}) });
 });
 
-app.get("/catalog/:type/:id/:extra.json", (req, res) => {
+app.get("/catalog/:type/:id/:extra.json", async (req, res) => {
   hits.catalog++;
   res.set("Cache-Control", "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
   res.json({
