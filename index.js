@@ -46,6 +46,7 @@ const TITLE_FIELDS = `
   titleText { text }
   titleType { id }
   releaseYear { year }
+  spokenLanguages { spokenLanguages { id text } }
   primaryImage { url }
   ratingsSummary { aggregateRating voteCount }
   runtime { seconds }
@@ -138,6 +139,8 @@ function nodeToMeta(node, type) {
     .map((g) => g.genre?.text)
     .filter(Boolean);
   if (genres.length) meta.genres = genres;
+  const languages = (node.spokenLanguages?.spokenLanguages || []).filter((l) => l.id && l.text);
+  if (languages.length) meta.languages = languages;
 
   const seconds = node.runtime?.seconds;
   if (seconds) {
@@ -293,6 +296,17 @@ function parseExtra(str) {
 function stripInternal({ _votes, ...clean }) {
   // Include the display field for snapshots saved before releaseInfo was added.
   if (!clean.releaseInfo && clean.year) clean.releaseInfo = String(clean.year);
+  if (clean.languages?.length) {
+    // Explicit links preserve existing metadata groups and put languages after genres.
+    clean.links = [
+      ...(clean.imdbRating ? [{ category: "imdb", name: clean.imdbRating, url: "https://imdb.com/title/" + clean.id }] : []),
+      ...(clean.genres || []).map((name) => ({ category: "Genres", name, url: "stremio:///search?search=" + encodeURIComponent(name) })),
+      ...clean.languages.map((language) => ({ category: "Languages", name: language.text, url: "https://www.imdb.com/search/title/?primary_language=" + encodeURIComponent(language.id) })),
+      ...(clean.director || []).map((name) => ({ category: "Director", name, url: "stremio:///search?search=" + encodeURIComponent(name) })),
+      ...(clean.cast || []).map((name) => ({ category: "Cast", name, url: "stremio:///search?search=" + encodeURIComponent(name) })),
+    ];
+    delete clean.languages;
+  }
   return clean;
 }
 
