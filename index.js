@@ -302,7 +302,7 @@ async function searchTopMovies(extra) {
   if (extra.decade && !MOVIE_DECADES.includes(extra.decade)) return [];
   const constraints = {
     titleTypeConstraint: { anyTitleTypeIds: ["movie"] },
-    userRatingsConstraint: { ratingsCountRange: { min: MIN_VOTES } },
+    userRatingsConstraint: { ratingsCountRange: { min: MIN_VOTES }, aggregateRatingRange: { min: 7.0 } },
   };
   if (extra.genre) constraints.genreConstraint = { allGenreIds: [extra.genre] };
   if (extra.decade) {
