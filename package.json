@@ -4,13 +4,16 @@
   "description": "Best of IMDb: highly rated movies and series for Stremio",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "build": "node scripts/build.cjs",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "serverless-http": "^4.0.0"
   },
   "license": "MIT"
 }

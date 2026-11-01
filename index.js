@@ -1,8 +1,6 @@
 const express = require("express");
 const path = require("path");
 
-const IS_VERCEL = !!process.env.VERCEL;
-
 const app = express();
 const PORT = process.env.PORT || 7001;
 const VERSION = require("./package.json").version;
@@ -231,7 +229,7 @@ app.use((req, res, next) => {
 });
 
 // Logo ---
-const LOGO_PATH = path.join(__dirname, "logo.png");
+const LOGO_PATH = path.join(process.env.LAMBDA_TASK_ROOT || __dirname, "logo.png");
 
 // Landing page
 app.get("/", (req, res) => {
@@ -382,7 +380,7 @@ app.get("/status", (_, res) => {
 
 module.exports = app;
 
-if (!IS_VERCEL) {
+if (require.main === module) {
     app.listen(PORT, "0.0.0.0", () =>
       console.log(`Best of IMDb addon v${VERSION} on :${PORT}`)
     );

@@ -1,4 +1,4 @@
-# Best of IMDb - Stremio addon
+# Best of IMDb
 
 <p align="center"><img src="logo.png" alt="Best of IMDb" width="160"></p>
 
@@ -19,14 +19,14 @@ The configured spoken-language exclusion applies to multilingual titles if **any
 
 Previews include release year, runtime, rating, genres, languages, description, cast and director when IMDb supplies them. Stremio controls the layout; additional filters may appear under its funnel button.
 
-No search-result cache, disk snapshots, or scheduled refreshes are used. HTTP responses request no caching, including on Vercel. Each catalogue request queries IMDb; client applications may maintain their own state. Upstream requests time out after 15 seconds.
+No search-result cache, disk snapshots, or scheduled refreshes are used. HTTP responses request no caching, including on Netlify. Each catalogue request queries IMDb; client applications may maintain their own state. Upstream requests time out after 15 seconds.
 
 ## Run locally
 
 Requires Node.js 20 or newer and npm.
 
 ```powershell
-git clone https://github.com/coisan/imdb-popular-stremio.git best-of-imdb
+git clone https://github.com/coisan/best-of-imdb-stremio.git best-of-imdb
 cd best-of-imdb
 npm.cmd ci
 npm.cmd start
@@ -55,11 +55,17 @@ docker run --name best-of-imdb -p 7001:7001 --restart unless-stopped best-of-imd
 
 The image includes the bundled logo and runs as a non-root user.
 
-### Vercel
+### Netlify
 
-Import your repository and select the **Express** framework preset. `api/index.js` exports the app; `vercel.json` routes requests and disables CDN caching. No external logo host, database, scheduler or API key configuration is required by this implementation.
+1. In Netlify, choose **Add new project → Import an existing project** and connect [coisan/best-of-imdb-stremio](https://github.com/coisan/best-of-imdb-stremio).
+2. Deploy the `main` branch. Keep the base directory at the repository root. The checked-in `netlify.toml` sets the build command to `npm run build`, publish directory to `public`, functions directory to `netlify/functions`, and Node.js to 22.
+3. Deploy, then open `https://YOUR-SITE.netlify.app/manifest.json` and install that URL in Stremio. The placeholder must be replaced with your actual Netlify site name.
 
-The current GitHub repository address remains `coisan/imdb-popular-stremio`; the package and add-on are branded Best of IMDb. If you rename the repository to `best-of-imdb` in GitHub settings, update your clone's origin URL accordingly.
+The Express app runs through Netlify Functions using `serverless-http`, the only additional runtime dependency. No Netlify SDK, CLI, IMDb API key, or environment variables are required for a Git-connected deployment. The build prepares the publish directory; all requests are rewritten to the function. The function bundle explicitly includes the logo. Cache-Control headers disable browser/CDN response caching.
+
+You can continue using `npm.cmd start` for local testing and Docker for a persistent server. Importing the Express app from the Netlify function does not open a listening port. Function request counters are per running instance, not permanent totals.
+
+Reference: [Netlify's Express deployment guide](https://docs.netlify.com/build/frameworks/framework-setup-guides/express/).
 
 ## Endpoints
 
@@ -76,6 +82,6 @@ For filters, replace `.json` with `/genre=Crime&decade=2020s.json`. Supported ex
 
 ## Development and attribution
 
-The runtime dependency is Express. Dependabot checks npm dependencies weekly. An optional pre-commit hook in `.githooks` scans staged content using Gitleaks; enable it with `git config core.hooksPath .githooks` after installing Gitleaks.
+The runtime dependencies are Express and serverless-http. Dependabot checks npm dependencies weekly. An optional pre-commit hook in `.githooks` scans staged content using Gitleaks; enable it with `git config core.hooksPath .githooks` after installing Gitleaks.
 
 This spin-off keeps the original project's MIT license and copyright notice. See [LICENSE](LICENSE). IMDb metadata access uses the existing public GraphQL integration and remains subject to upstream availability and IMDb's terms; this is not an official IMDb API product or an exact reproduction of the Top 250 ranking.
