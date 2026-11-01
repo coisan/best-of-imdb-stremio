@@ -1,7 +1,7 @@
 {
-  "name": "imdb-popular-stremio-addon",
-  "version": "2.1.0",
-  "description": "Stremio addon serving IMDb popular movies and series catalogs",
+  "name": "best-of-imdb",
+  "version": "1.0.0",
+  "description": "Best of IMDb: highly rated movies and series for Stremio",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -10,7 +10,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "express": "^5.2.1",
-    "node-cron": "^4.6.0"
-  }
+    "express": "^5.2.1"
+  },
+  "license": "MIT"
 }

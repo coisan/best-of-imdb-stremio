@@ -1,5 +1,4 @@
 const express = require("express");
-const fs = require("fs");
 const path = require("path");
 
 const IS_VERCEL = !!process.env.VERCEL;
@@ -189,29 +188,24 @@ async function resolveCatalog(type, id, extra) {
 }
 
 // ---------------------------------------------------------------------------
-// Manifest (built dynamically so genre lists stay current)
+// Manifest
 // ---------------------------------------------------------------------------
 
 function buildManifest(proto, host) {
-  const topRatedMovieExtras = [{ name: "genre", options: TOP_RATED_GENRES }, { name: "decade", options: TOP_RATED_DECADES }, { name: "search" }, { name: "skip" }];
+  const topRatedExtras = [{ name: "genre", options: TOP_RATED_GENRES }, { name: "decade", options: TOP_RATED_DECADES }, { name: "search" }, { name: "skip" }];
 
   return {
-    stremioAddonsConfig: {
-      issuer: "https://stremio-addons.net",
-      signature:
-        "eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0..G-1w-gbjMK8hs2Gr8aYivw.ktgQJPi38gdApAgHbuF5xHOdHum70ITuae6Fvgp8HvDmrB-ymxxInHwkPjw-ak2kp7iEEersXEh7lLV_GZEYEKa7KQ9XAbsnp4zm-zpIcMsjZvVdevRfRXXN7FTHJrSj.Kk6vdgPh8M-3yUCNp2-4tQ",
-    },
-    id: "community.imdb-popular",
+    id: "community.coisan.best-of-imdb",
     version: VERSION,
-    name: "IMDb Top Rated",
+    name: "Best of IMDb",
     description:
-      "Highly rated IMDb movies and series with genre and decade filtering",
+      "The best-rated movies and series on IMDb. Filter by genre and decade.",
     logo: `${proto}://${host}/logo.png`,
     resources: ["catalog"],
     types: ["movie", "series"],
     catalogs: [
-      { type: "movie", id: "imdb-top-rated-movies", name: "IMDb Top Rated Movies", extra: topRatedMovieExtras },
-      { type: "series", id: "imdb-top-rated-series", name: "IMDb Top Rated Series", extra: topRatedMovieExtras },
+      { type: "movie", id: "imdb-top-rated-movies", name: "Best of IMDb Movies", extra: topRatedExtras },
+      { type: "series", id: "imdb-top-rated-series", name: "Best of IMDb Series", extra: topRatedExtras },
     ],
     behaviorHints: { configurable: false },
     idPrefixes: ["tt"],
@@ -229,38 +223,15 @@ function originOf(req) {
 
 const hits = { manifest: 0, catalog: 0 };
 
-app.use(async (req, res, next) => {
+app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "*");
-  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-  console.log(`[REQ] ${req.method} ${req.url} from ${ip}`);
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   next();
 });
 
 // Logo ---
-const LOGO_URL =
-  "https://raw.githubusercontent.com/SSanderV/imdb-popular-stremio/main/logo.png";
 const LOGO_PATH = path.join(__dirname, "logo.png");
-let logoBuf = null;
-
-async function ensureLogo() {
-  if (logoBuf) return;
-  try {
-    if (fs.existsSync(LOGO_PATH)) {
-      logoBuf = fs.readFileSync(LOGO_PATH);
-      console.log(`[logo] Loaded from cache: ${logoBuf.length} bytes`);
-      return;
-    }
-    const res = await fetch(LOGO_URL);
-    if (res.ok) {
-      logoBuf = Buffer.from(await res.arrayBuffer());
-      try { fs.writeFileSync(LOGO_PATH, logoBuf); } catch (_) { /* read-only on Vercel */ }
-      console.log(`[logo] Downloaded: ${logoBuf.length} bytes`);
-    }
-  } catch (e) {
-    console.error("[logo] Failed:", e.message);
-  }
-}
 
 // Landing page
 app.get("/", (req, res) => {
@@ -277,7 +248,7 @@ app.get("/", (req, res) => {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a2e;
+      background: #10131c;
       color: #e0e0e0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       min-height: 100vh;
@@ -311,8 +282,8 @@ app.get("/", (req, res) => {
     }
     .install-btn {
       display: inline-block;
-      background: #7b5bf5;
-      color: #fff;
+      background: #e8bc4b;
+      color: #10131c;
       text-decoration: none;
       padding: 0.9rem 2.5rem;
       border-radius: 8px;
@@ -321,7 +292,7 @@ app.get("/", (req, res) => {
       transition: background 0.2s, transform 0.1s;
     }
     .install-btn:hover {
-      background: #6a4be0;
+      background: #d7a72c;
       transform: translateY(-1px);
     }
     .install-btn:active {
@@ -366,12 +337,10 @@ app.get("/", (req, res) => {
 </html>`);
 });
 
-app.get("/logo.png", async (_, res) => {
-  await ensureLogo();
-  if (!logoBuf) return res.status(404).end();
+app.get("/logo.png", (_, res) => {
   res.set("Content-Type", "image/png");
   res.set("Cache-Control", "no-store");
-  res.send(logoBuf);
+  res.sendFile(LOGO_PATH);
 });
 
 // Always request current manifests and catalog results from the server.
@@ -401,8 +370,7 @@ app.get("/catalog/:type/:id/:extra.json", async (req, res) => {
   });
 });
 
-// Counts are per catalog so a monitor can alert on a row shrinking, not just on
-// the data going stale. Both failures look identical from the outside otherwise.
+// Live-search health and request counters.
 app.get("/status", (_, res) => {
   res.set("Cache-Control", "no-cache");
   res.json({ status: "ok", version: VERSION, source: "imdb-graphql", mode: "live-search", hits, catalogs: ["imdb-top-rated-movies", "imdb-top-rated-series"] });
@@ -415,9 +383,7 @@ app.get("/status", (_, res) => {
 module.exports = app;
 
 if (!IS_VERCEL) {
-  ensureLogo().then(() => {
     app.listen(PORT, "0.0.0.0", () =>
-      console.log(`IMDb Top Rated addon v${VERSION} on :${PORT}`)
+      console.log(`Best of IMDb addon v${VERSION} on :${PORT}`)
     );
-  });
 }
